@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_inventory_dashboard_config_form" model="ir.ui.view">
+        <field name="name">inventory.dashboard.config.form</field>
+        <field name="model">inventory.dashboard.config</field>
+        <field name="arch" type="xml">
+            <form string="Configuration Dashboard Inventaire">
+                <sheet>
+                    <group>
+                        <group string="Paramètres d'affichage">
+                            <field name="chart_days"/>
+                            <field name="recent_days"/>
+                            <field name="active_picking_limit"/>
+                        </group>
+                        <group string="Comportement">
+                            <field name="auto_refresh_interval"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_inventory_dashboard_config_list" model="ir.ui.view">
+        <field name="name">inventory.dashboard.config.list</field>
+        <field name="model">inventory.dashboard.config</field>
+        <field name="arch" type="xml">
+            <list string="Configurations Dashboard Inventaire">
+                <field name="name"/>
+                <field name="chart_days"/>
+                <field name="recent_days"/>
+                <field name="active_picking_limit"/>
+                <field name="auto_refresh_interval"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_inventory_dashboard_config" model="ir.actions.act_window">
+        <field name="name">Configuration Dashboard Inventaire</field>
+        <field name="res_model">inventory.dashboard.config</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem
+        id="menu_inventory_dashboard_config"
+        name="Config. Dashboard"
+        parent="stock.menu_stock_config_settings"
+        action="action_inventory_dashboard_config"
+        sequence="100"
+        groups="stock.group_stock_manager"/>
+</odoo>

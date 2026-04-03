@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+    <t t-name="inventory_dashboard.InventoryDashboard">
+        <div class="inventory_dashboard">
+            <!-- Header avec contrôles -->
+            <div class="db-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1 class="db-title mb-0">Tableau de bord Inventaire</h1>
+                    <div class="db-controls">
+                        <span class="db-last-update" t-if="state.lastUpdate">
+                            <i class="fa fa-clock-o"/> <t t-esc="state.lastUpdate"/>
+                        </span>
+
+                        <!-- Auto-refresh -->
+                        <select class="db-select"
+                                t-on-change="(ev) => this.onRefreshIntervalChange(ev)">
+                            <option value="0" t-att-selected="state.autoRefreshInterval === 0 ? 'selected' : undefined">
+                                Auto: Off
+                            </option>
+                            <option value="30" t-att-selected="state.autoRefreshInterval === 30 ? 'selected' : undefined">
+                                30s
+                            </option>
+                            <option value="60" t-att-selected="state.autoRefreshInterval === 60 ? 'selected' : undefined">
+                                1 min
+                            </option>
+                            <option value="120" t-att-selected="state.autoRefreshInterval === 120 ? 'selected' : undefined">
+                                2 min
+                            </option>
+                            <option value="300" t-att-selected="state.autoRefreshInterval === 300 ? 'selected' : undefined">
+                                5 min
+                            </option>
+                        </select>
+
+                        <button t-attf-class="btn-filter {{ hasActiveFilters() ? 'active' : '' }}"
+                                t-on-click="toggleFilters">
+                            <i class="fa fa-filter"/>
+                            Filtres
+                            <span class="filter-dot" t-if="hasActiveFilters()"/>
+                        </button>
+
+                        <button class="btn-refresh" t-on-click="() => this.loadData()">
+                            <i class="fa fa-refresh"/> Actualiser
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Panneau de filtres (collapsible) -->
+                <div class="db-filters-panel" t-if="state.showFilters">
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <label>Date début</label>
+                            <input type="date" class="filter-input"
+                                   t-att-value="state.filters.date_from"
+                                   t-on-change="(ev) => this.onFilterChange('date_from', ev)"/>
+                        </div>
+                        <div class="filter-group">
+                            <label>Date fin</label>
+                            <input type="date" class="filter-input"
+                                   t-att-value="state.filters.date_to"
+                                   t-on-change="(ev) => this.onFilterChange('date_to', ev)"/>
+                        </div>
+                        <div class="filter-group">
+                            <label>Type d'opération</label>
+                            <select class="filter-input"
+                                    t-on-change="(ev) => this.onFilterChange('picking_type_id', ev)">
+                                <option value="0">-- Tous --</option>
+                                <t t-foreach="state.pickingTypes" t-as="pt" t-key="pt.id">
+                                    <option t-att-value="pt.id"
+                                            t-att-selected="state.filters.picking_type_id === pt.id ? 'selected' : undefined">
+                                        <t t-esc="pt.name"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Partenaire</label>
+                            <select class="filter-input"
+                                    t-on-change="(ev) => this.onFilterChange('partner_id', ev)">
+                                <option value="0">-- Tous --</option>
+                                <t t-foreach="state.partners" t-as="p" t-key="p.id">
+                                    <option t-att-value="p.id"
+                                            t-att-selected="state.filters.partner_id === p.id ? 'selected' : undefined">
+                                        <t t-esc="p.name"/>
+                                    </option>
+                                </t>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Jours graphique</label>
+                            <select class="filter-input"
+                                    t-on-change="(ev) => this.onFilterChange('chart_days', ev)">
+                                <option value="7" t-att-selected="state.filters.chart_days === 7 ? 'selected' : undefined">7 jours</option>
+                                <option value="14" t-att-selected="state.filters.chart_days === 14 ? 'selected' : undefined">14 jours</option>
+                                <option value="30" t-att-selected="state.filters.chart_days === 30 ? 'selected' : undefined">30 jours</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Période stats</label>
+                            <select class="filter-input"
+                                    t-on-change="(ev) => this.onFilterChange('recent_days', ev)">
+                                <option value="7" t-att-selected="state.filters.recent_days === 7 ? 'selected' : undefined">7 jours</option>
+                                <option value="30" t-att-selected="state.filters.recent_days === 30 ? 'selected' : undefined">30 jours</option>
+                                <option value="60" t-att-selected="state.filters.recent_days === 60 ? 'selected' : undefined">60 jours</option>
+                                <option value="90" t-att-selected="state.filters.recent_days === 90 ? 'selected' : undefined">90 jours</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="filters-actions">
+                        <button class="btn-apply" t-on-click="applyFilters">
+                            <i class="fa fa-check"/> Appliquer
+                        </button>
+                        <button class="btn-reset" t-on-click="resetFilters">
+                            <i class="fa fa-times"/> Réinitialiser
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <t t-if="state.loading">
+                <div class="loading">
+                    <i class="fa fa-spinner fa-spin fa-2x me-2"/> Chargement...
+                </div>
+            </t>
+
+            <t t-else="">
+                <!-- KPI Cards -->
+                <div class="kpi-row">
+                    <div class="kpi-card draft" t-on-click="() => this.openPickings('draft')">
+                        <div class="kpi-value" t-esc="state.data.state_counts.draft || 0"/>
+                        <div class="kpi-label">Brouillon</div>
+                    </div>
+                    <div class="kpi-card waiting" t-on-click="() => this.openPickings('waiting')">
+                        <div class="kpi-value" t-esc="state.data.state_counts.waiting || 0"/>
+                        <div class="kpi-label">En attente</div>
+                    </div>
+                    <div class="kpi-card assigned" t-on-click="() => this.openPickings('assigned')">
+                        <div class="kpi-value" t-esc="state.data.state_counts.assigned || 0"/>
+                        <div class="kpi-label">Prêts</div>
+                    </div>
+                    <div class="kpi-card done" t-on-click="() => this.openPickings('done')">
+                        <div class="kpi-value" t-esc="state.data.state_counts.done || 0"/>
+                        <div class="kpi-label">Terminés</div>
+                    </div>
+                    <div class="kpi-card cancel" t-on-click="() => this.openPickings('cancel')">
+                        <div class="kpi-value" t-esc="state.data.state_counts.cancel || 0"/>
+                        <div class="kpi-label">Annulés</div>
+                    </div>
+                    <div class="kpi-card late" t-on-click="() => this.openLatePickings()">
+                        <div class="kpi-value" t-esc="state.data.late_count || 0"/>
+                        <div class="kpi-label">En retard</div>
+                    </div>
+                    <div class="kpi-card low_stock" t-on-click="() => this.openLowStock()">
+                        <div class="kpi-value" t-esc="state.data.low_stock_count || 0"/>
+                        <div class="kpi-label">Alertes stock min</div>
+                    </div>
+                    <div class="kpi-card moves_today" t-on-click="() => this.openMovesToday()">
+                        <div class="kpi-value" t-esc="state.data.moves_today_count || 0"/>
+                        <div class="kpi-label">Mouvements aujourd'hui</div>
+                    </div>
+                </div>
+
+                <!-- Types d'opérations -->
+                <div class="db-section">
+                    <div class="db-section-title">
+                        <i class="fa fa-exchange me-2"/>Types d'opérations
+                    </div>
+                    <div class="op-type-cards">
+                        <t t-foreach="state.data.operation_type_stats" t-as="opt" t-key="opt.id">
+                            <div t-attf-class="op-type-card {{ getOpTypeColorClass(opt.code) }}"
+                                 t-on-click="() => this.openPickingsByType(opt.id)">
+                                <div class="op-type-name" t-esc="opt.name"/>
+                                <div class="op-type-stats">
+                                    <span class="op-stat">
+                                        <span class="op-stat-value" t-esc="opt.draft"/>
+                                        <span class="op-stat-label">Brouillon</span>
+                                    </span>
+                                    <span class="op-stat">
+                                        <span class="op-stat-value" t-esc="opt.waiting"/>
+                                        <span class="op-stat-label">En attente</span>
+                                    </span>
+                                    <span class="op-stat">
+                                        <span class="op-stat-value" t-esc="opt.assigned"/>
+                                        <span class="op-stat-label">Prêts</span>
+                                    </span>
+                                    <span class="op-stat">
+                                        <span class="op-stat-value" t-esc="opt.done"/>
+                                        <span class="op-stat-label">Terminés (7j)</span>
+                                    </span>
+                                </div>
+                                <div class="op-type-late" t-if="opt.late > 0">
+                                    <i class="fa fa-exclamation-triangle me-1"/>
+                                    <t t-esc="opt.late"/> en retard
+                                </div>
+                            </div>
+                        </t>
+                        <t t-if="!state.data.operation_type_stats.length">
+                            <div class="text-muted p-3">Aucun type d'opération configuré</div>
+                        </t>
+                    </div>
+                </div>
+
+                <div class="db-columns">
+                    <!-- Graphique mouvements + Top produits -->
+                    <div class="db-col">
+                        <div class="db-section">
+                            <div class="db-section-title">
+                                <i class="fa fa-bar-chart me-2"/>
+                                Mouvements de stock <t t-esc="state.filters.chart_days"/> derniers jours
+                                <span class="float-end text-muted" style="font-size:0.85rem;">
+                                    <t t-esc="state.filters.recent_days"/>j:
+                                    <strong t-esc="state.data.done_pickings_total"/> transferts
+                                    / <strong t-esc="formatQty(state.data.done_moves_total)"/> mouvements
+                                </span>
+                            </div>
+                            <div class="chart-container">
+                                <div class="bar-chart">
+                                    <t t-foreach="state.data.daily_moves" t-as="day" t-key="day.date">
+                                        <div class="bar-group">
+                                            <div class="bar-value" t-esc="day.count"/>
+                                            <div class="bar"
+                                                 t-attf-style="height: {{ getBarHeight(day.count) }}px"/>
+                                            <div class="bar-label" t-esc="day.date"/>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top mouvements par produit -->
+                        <div class="db-section">
+                            <div class="db-section-title">
+                                <i class="fa fa-cubes me-2"/>Top mouvements par produit
+                                <span class="float-end text-muted" style="font-size:0.85rem;">
+                                    <t t-esc="state.filters.recent_days"/> derniers jours
+                                </span>
+                            </div>
+                            <t t-if="state.data.top_products.length">
+                                <table class="picking-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Produit</th>
+                                            <th>Qté déplacée</th>
+                                            <th>Nb mouvements</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="state.data.top_products" t-as="prod" t-key="prod.product_id">
+                                            <tr>
+                                                <td t-esc="prod.product_name"/>
+                                                <td><strong t-esc="formatQty(prod.total_qty)"/></td>
+                                                <td t-esc="prod.move_count"/>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </t>
+                            <t t-else="">
+                                <div class="text-muted text-center p-4">
+                                    Aucun mouvement sur la période
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+
+                    <!-- Transferts actifs -->
+                    <div class="db-col">
+                        <div class="db-section">
+                            <div class="db-section-title">
+                                <i class="fa fa-truck me-2"/>Transferts actifs
+                                <span class="float-end text-muted" style="font-size:0.85rem;">
+                                    <t t-esc="state.data.active_pickings.length"/> affichés
+                                </span>
+                            </div>
+                            <t t-if="state.data.active_pickings.length">
+                                <table class="picking-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Référence</th>
+                                            <th>Type opération</th>
+                                            <th>Partenaire</th>
+                                            <th>Date prévue</th>
+                                            <th>État</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="state.data.active_pickings" t-as="pick" t-key="pick.id">
+                                            <tr t-on-click="() => this.openPicking(pick.id)">
+                                                <td t-esc="pick.name"/>
+                                                <td t-esc="pick.picking_type_id ? pick.picking_type_id[1] : '-'"/>
+                                                <td t-esc="pick.partner_id ? pick.partner_id[1] : '-'"/>
+                                                <td t-esc="formatDate(pick.scheduled_date)"/>
+                                                <td>
+                                                    <span t-attf-class="badge-state badge-{{ getStateBadgeClass(pick.state) }}">
+                                                        <t t-esc="getStateLabel(pick.state)"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </t>
+                            <t t-else="">
+                                <div class="text-muted text-center p-4">
+                                    <i class="fa fa-check-circle fa-2x mb-2 d-block text-success"/>
+                                    Aucun transfert actif
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </t>
+</templates>
