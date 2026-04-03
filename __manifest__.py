@@ -1,12 +1,13 @@
 {
     'name': 'Tableau de bord Inventaire',
-    'version': '18.0.1.0.0',
+    'version': '18.0.2.0.0',
     'category': 'Inventory/Inventory',
     'summary': 'Dashboard Inventaire dynamique avec KPI, filtres et configuration',
     'description': 'Tableau de bord interactif pour le suivi des opérations de stock avec filtres dynamiques, rafraîchissement auto et configuration.',
     'author': 'SOPROMER',
     'depends': ['stock'],
     'data': [
+        'security/inventory_dashboard_groups.xml',
         'security/ir.model.access.csv',
         'views/inventory_dashboard_config_views.xml',
         'views/inventory_dashboard_views.xml',

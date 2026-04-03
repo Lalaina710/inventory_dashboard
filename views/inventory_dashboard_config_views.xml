@@ -49,5 +49,5 @@
         parent="stock.menu_stock_config_settings"
         action="action_inventory_dashboard_config"
         sequence="100"
-        groups="stock.group_stock_manager"/>
+        groups="inventory_dashboard.group_inventory_dashboard_manager"/>
 </odoo>

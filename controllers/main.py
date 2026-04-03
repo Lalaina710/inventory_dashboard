@@ -1,12 +1,18 @@
 from odoo import http
 from odoo.http import request
 from datetime import datetime, timedelta
+from werkzeug.exceptions import Forbidden
 
 
 class InventoryDashboardController(http.Controller):
 
     @http.route('/inventory_dashboard/data', type='json', auth='user')
     def get_dashboard_data(self, **kwargs):
+        if not request.env.user.has_group(
+            'inventory_dashboard.group_inventory_dashboard_user'
+        ):
+            raise Forbidden("Accès non autorisé au dashboard inventaire")
+
         Picking = request.env['stock.picking']
         Move = request.env['stock.move']
 
@@ -236,6 +242,11 @@ class InventoryDashboardController(http.Controller):
     @http.route('/inventory_dashboard/filters_data', type='json', auth='user')
     def get_filters_data(self):
         """Retourne les données pour les listes déroulantes des filtres."""
+        if not request.env.user.has_group(
+            'inventory_dashboard.group_inventory_dashboard_user'
+        ):
+            raise Forbidden("Accès non autorisé au dashboard inventaire")
+
         # Types d'opérations
         picking_types = request.env['stock.picking.type'].search_read(
             [], fields=['name'],
